@@ -1,30 +1,43 @@
-int sensorPin = A0;
-int value = 0;
-#define LED_PIN_3 3
-#define PHOTOCELL_PIN_A2 A2
-int valuePhotocell = 0;
+/**
+Example Sound Level Sketch for the 
+Adafruit Microphone Amplifier
+**/
 
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  pinMode(LED_PIN_3, OUTPUT);
+const int sampleWindow = 50; // Sample window width in mS (50 mS = 20Hz)
+unsigned int sample;
+
+void setup() 
+{
+   Serial.begin(9600);
 }
 
-int produceAverage(){
-  int temp = 0;
-  for(int i = 0; i< 32; i++) {
-    temp = temp + analogRead(sensorPin);
-  }
-  temp = temp/32;
-  return temp;
-}
 
-void loop() {
-  // put your main code here, to run repeatedly:
-  value = produceAverage();
-  valuePhotocell = analogRead(PHOTOCELL_PIN_A2);
-  Serial.println(value, DEC);
-  analogWrite(LED_PIN_3, value);
-//  digitalWrite(LED_PIN_3, value);
-//  delay(200);
+void loop() 
+{
+   unsigned long startMillis= millis();  // Start of sample window
+   unsigned int peakToPeak = 0;   // peak-to-peak level
+
+   unsigned int signalMax = 0;
+   unsigned int signalMin = 1024;
+
+   // collect data for 50 mS
+   while (millis() - startMillis < sampleWindow)
+   {
+      sample = analogRead(0);
+      if (sample < 1024)  // toss out spurious readings
+      {
+         if (sample > signalMax)
+         {
+            signalMax = sample;  // save just the max levels
+         }
+         else if (sample < signalMin)
+         {
+            signalMin = sample;  // save just the min levels
+         }
+      }
+   }
+   peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
+   double volts = (peakToPeak * 5.0) / 1024;  // convert to volts
+
+   Serial.println(peakToPeak);
 }
