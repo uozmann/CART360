@@ -1,0 +1,354 @@
+/********************************************************************************
+ *  ETUDE THREE extends the 8 bit music machine schema by incorparating an 8 x 8 
+ *  LED Matrix. Instead of sequenced 8 bit tones with values between {0...1023}, 
+ *  one will instead create 4 unique LED Matrix Patterns that are tightly coupled 
+ *  to each corresponding button press on the resistor ladder. The overall premise 
+ *  is the same as the music machine - sequencing LED Patterns.
+ *  
+ *  MODES (4 POSSIBLE MODES)
+ *  RESET, PLAY, RECORD, LOOPOP
+ *  
+ *  RGB LED (REPRESENTS THE CURRENT MODE)
+ *  RESET == OFF
+ *  PLAY == BLUE
+ *  RECORD == GREEN
+ *  LOOPOP == _ANYCOLOUR_
+ *  
+ *  THE RGB VALUES CAN CHANGE DYNAMICALLY VIA PWM CONTROL OF EACH CHANNEL
+ */
+
+/******************** SYSTEM VARIABLES FOR ETUDE THREE TO FUNCTION ***********/
+/******************** THERE IS NO NEED TO ALTER THE SYSTEM  VARIABLES ********/
+
+/* THIS INCLUDE WILL REFERNECE YOUR LED PATTERNS IN A TWO DIMENSIONAL ARRAY  */
+#include "ETUDE-THREE-MATRIX-PATTERNS.h"
+
+/* CONSTANTS */
+/* MODE BUTTON */
+#define BUTTON_MODE_PIN 2
+/* RGB LED PINS */
+#define LED_PIN_R 9
+#define LED_PIN_G 10
+#define LED_PIN_B 11
+#define KEY       A0 // BUTTON PRESSED ON RESISTOR LADDER
+
+//Matrix Pin
+#define CLK_PIN 6
+#define CS_PIN 7
+#define DATA_PIN 8
+int numDevice = 1;
+
+/* VARIABLES FOR ETUDE THREE TO FUNCTION */
+int mode = 0;
+int currentBtnState;
+int pastBtnState = 0;
+
+/* PATTERN COUNTER */
+int countPatterns = 0;
+int resistanceValue;
+int resistanceBtn[4] = {0,0,0,0};
+int patternsIndex = 0;
+boolean resistanceBtnOn = false;
+
+/* MAX NUMBER OF PATTERNS IN SEQUENCE ARRAY */
+#define MAX_PATTERNS 16
+
+/* AN ARRAY WHICH HOLD PATTERNS SOURCED VIA RECORD MODE AND DISPLAYED VIA LOOPOP MODES */
+int patterns[MAX_PATTERNS] = {0}; 
+
+/* PAUSE PERIOD BETWEEN PATTERNS */
+int duration = 200; // (CAN BE CHANGED BY PATTERN ATTRIBUTES)
+
+/********************************************************************************/
+/********************* SETUP THE MAX72XX LIBRARY (PROVIDED) *********************/
+/********************************************************************************/
+ /* Extract the contents of the "LedControl.zip" archive and Install the LedControl 
+  * Library for the Arduino Enviroment and reference it for use within ETUDE THREE
+  * i.e. you must include a library before using it.
+  */ 
+#include <LedControl.h>// ... ENSURE THAT YOU REFERNECE THE LED MATRIX LIBRARY
+
+/* Initialise an instance of the LedControl Library to control your LED Matrix */
+/* MAX72XX CONNECTIONS TO ARDUINO
+  * Create a new controler 
+  * Params :
+  * dataPin     pin on the Arduino where data gets shifted out
+  * clockPin    pin for the clock
+  * csPin       pin for selecting the device 
+  * numDevices  maximum number of devices that can be controled
+*/
+
+//LedControl(DATA_PIN, CLK_PIN, CS_PIN, numDevice);
+LedControl lc = LedControl(DATA_PIN, CLK_PIN, CS_PIN, numDevice);// CREATE AN INSTANCE OF THE LED MATRIX;
+
+/* VARIABLES FOR LED MATRIX TO FUNCTION */
+const unsigned int BRIGHTNESS = 8; // Range = {0 ... 15}
+
+/* REFRESH RATE FOR LED MATRIX DRAWING - CHANGE AS YOU REQUIRE*/
+unsigned long REFRESH_RATE_1 = 250; // 40 HZ REFRESH RATE (High Flicker)
+unsigned long REFRESH_RATE_2 = 10;  // 100 HZ (Low Flicker)
+unsigned long HOLD_PATTERN = 1000;  // 1 HZ 
+/* LED MATRIX WAKE ROUTINE - NO NEED TO ALTER FUNCTION */
+void wakeUpMAX72XX() {
+  lc.shutdown(0, false);
+  lc.setIntensity(0, BRIGHTNESS);
+  lc.clearDisplay(0);
+}
+
+/********************************************************************************/
+/* ALGORITHM TO DRAW YOUR PATTERN ROW x ROW CONTAINED WITHIN TWO DIMENSIONAL ARRAY */
+void drawPatternByRow(int patternSelect) {
+  
+  // CLEAR LED MATRIX
+  lc.clearDisplay(0);
+  
+  for (int i = 0; i < 8; i++) {
+      lc.setRow(0, i, ( splats[patternSelect][i]) );
+      delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
+  }
+  delay(HOLD_PATTERN); // CHANGE TO INCREASE REFRESH RATE.
+  
+  // CLEAR LED MATRIX
+  lc.clearDisplay(0);
+}
+/********************************************************************************/
+
+/* SETUP ROUTINE - NO NEED TO ALTER FUNCTION */
+void setup() {
+  Serial.begin(57600);
+  wakeUpMAX72XX();
+  pinMode(BUTTON_MODE_PIN, INPUT);
+  pinMode(KEY, INPUT);
+  /* EXAMPLE PATTERN FOR DISPLAY ON LED MATRIX, THE PARAMETER VALUE OF ZERO REFERS TO FIRST 
+   *  PATTERN IN ETUDE-THREE-MATRIX-PATTERNS ARRAY */ 
+  drawPatternByRow(3); // TESTS CORRECT HOOK-UP OF LED MATRIX - MAKE SURE THIS DRAWS TO THE MATRIX
+}
+
+/* ETUDE THREE PART ONE - BUILD OUT PHYSICAL CIRCUIT & IMPLEMENT CODE FUNCTION FOR
+   FOR setMode(), setRBG() and runMode() - use stubs (function) placeholders where needed */
+void loop() {
+  setMode();  // CYCLE THROUGH MODES BASED ON BUTTON PRESS
+  setRGB();   // SET RGB LED COLOUR BASED ON CURRENT MODE
+  runMode();  // ACTUATE SET MODE
+//  Serial.println(mode);
+}
+
+
+/* setMode() controls the viability of the modes variable - count */  
+void setMode(){
+  currentBtnState = digitalRead(BUTTON_MODE_PIN);
+  if (currentBtnState != pastBtnState) {
+    if (currentBtnState == 0) {
+       mode++;
+    } 
+  }
+  pastBtnState = currentBtnState;
+  if (mode > 3) {
+    mode = 0;
+  }
+  delay(50);
+}
+
+/* setRGB() sets the visible colour of the RGB LED based on the current active mode - 
+   implement using a switch control structure */ 
+void setRGB() {
+  switch(mode) {
+    case 0: 
+      analogWrite(LED_PIN_R, 0);
+      analogWrite(LED_PIN_G, 0);
+      analogWrite(LED_PIN_B, 0);
+      break;
+    case 1:
+      analogWrite(LED_PIN_G, 0);
+      analogWrite(LED_PIN_R, 0);
+      analogWrite(LED_PIN_B, 255);
+      break;
+    case 2:
+      analogWrite(LED_PIN_B, 0);
+      analogWrite(LED_PIN_G, 255);
+      analogWrite(LED_PIN_R, 0);
+      break;
+    case 3:
+      analogWrite(LED_PIN_R, 255);
+      analogWrite(LED_PIN_G, 0);
+      analogWrite(LED_PIN_B, 0);
+      break;
+  }
+}
+
+/* runMode() determines which action is active based on the outcome of setMode() - 
+   implement function logic using a switch control structure */   
+void runMode() {
+  switch(mode) {
+    case 0: 
+    reset();
+    break; // RESET
+    
+    case 1: 
+    play();
+    break; // PLAY
+    
+    case 2: 
+    record();
+    break; // RECORD
+    
+    case 3: 
+    loopop();
+    break; // PLAYBACK
+    
+    default: break;   
+  }
+}
+
+/* reset() - restart the system */ 
+void reset() {
+  
+}
+
+void resistanceBtnCounter() {
+  resistanceValue = analogRead(KEY);
+  if (resistanceValue >= 200 && resistanceValue < 260) {
+      countPatterns = 0;
+    } else if (resistanceValue >= 330 && resistanceValue < 350) {
+      countPatterns = 1;
+    } else if (resistanceValue >= 500 && resistanceValue < 520) {
+      countPatterns = 2;
+    } else if (resistanceValue >= 900 && resistanceValue < 1200) {
+      countPatterns = 3;
+    } else {
+       countPatterns = 4;
+    }
+
+}
+/* play() - capture button press from resistor ladder and produce a pattern on the LED Matrix
+- implement function logic using a switch control structure */
+void play() {
+    resistanceBtnCounter();
+    
+    switch(countPatterns) {
+      case 0: /* draw that pattern */ 
+      drawPatternByRow(countPatterns);
+      break;
+      
+      case 1: 
+      /* draw that pattern */ 
+      drawPatternByRow(countPatterns);
+      break;
+      
+      case 2: 
+      /* draw that pattern */ 
+      drawPatternByRow(countPatterns);
+      break;
+      
+      case 3: 
+      /* draw that pattern */ 
+      drawPatternByRow(countPatterns);
+      break;
+      
+      case 4: 
+      /* draw that pattern */ 
+      break;
+    }
+}
+
+/* record() - capture the sequence (MAX 16 PATTERNS) of input patterns from the resistor ladder and store them  
+ *  in an array - implement function logic using a switch control structure */
+void record() {
+   resistanceValue = analogRead(KEY);
+  if (resistanceValue >= 200 && resistanceValue < 260) {
+      resistanceBtnOn = true;
+      countPatterns = 0;
+    } else if (resistanceValue >= 330 && resistanceValue < 350) {
+      resistanceBtnOn = true;
+      countPatterns = 1;
+    } else if (resistanceValue >= 500 && resistanceValue < 520) {
+      resistanceBtnOn = true;
+      countPatterns = 2;
+    } else if (resistanceValue >= 900 && resistanceValue < 1200) {
+      resistanceBtnOn = true;
+      countPatterns = 3;
+    } else {
+       resistanceBtnOn = false;
+    }
+
+  switch(countPatterns) {
+      case 0: /* draw that pattern */ 
+      if (patternsIndex != 16 && resistanceBtnOn) {
+        drawPatternByRow(countPatterns);
+      }
+      break;
+      
+      case 1: 
+      /* draw that pattern */ 
+      if (patternsIndex != 16 && resistanceBtnOn) {
+        drawPatternByRow(countPatterns);
+      }
+      break;
+      
+      case 2: 
+      /* draw that pattern */ 
+      if (patternsIndex != 16 && resistanceBtnOn) {
+        drawPatternByRow(countPatterns);
+      }
+      break;
+      
+      case 3: 
+      /* draw that pattern */ 
+      if (patternsIndex != 16 && resistanceBtnOn) {
+        drawPatternByRow(countPatterns);
+      }
+      break;
+      
+      case 4: 
+      /* draw that pattern */ 
+      break;
+
+      default:
+      break;
+    }
+
+    if (resistanceBtnOn == true && patternsIndex <= 16) {
+    patternsIndex ++;
+    delay(50);
+    resistanceBtnOn = false;
+    } 
+  
+    patterns[patternsIndex] = countPatterns;
+
+    
+//    Serial.print("Index: ");
+//    Serial.print(patternsIndex);
+//    Serial.print("Value: ");
+//    Serial.println(patterns[patternsIndex]);
+//    delay(100);
+}
+
+/* loopo() - loops over the contents of the patterns array continiously until the mode changes */
+void loopop() {
+  //switch statement is used here because a it us unable to break out of for loop without switch statement
+    switch(currentBtnState) {
+  case 0:
+    for (int i : patterns) {
+    int loopingPattern = patterns[i];
+    drawPatternByRow(loopingPattern);  
+    delay(50);
+    
+    currentBtnState = digitalRead(BUTTON_MODE_PIN);
+    if (currentBtnState == 1) {
+      break;
+    delay(50);
+    }
+    Serial.print("Index: ");
+    Serial.print(i);
+    Serial.print("Value: ");
+    Serial.println(loopingPattern);
+  }
+    break;
+    
+  case 1:
+    break;
+    
+  default:
+  break;
+}
+}
