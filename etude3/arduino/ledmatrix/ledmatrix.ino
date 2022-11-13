@@ -46,7 +46,7 @@ int pastBtnState = 0;
 /* PATTERN COUNTER */
 int countPatterns = 0;
 int resistanceValue;
-int resistanceBtn[4] = {0,0,0,0};
+int resistanceBtn = 0;
 int patternsIndex = 0;
 boolean resistanceBtnOn = false;
 
@@ -107,6 +107,14 @@ void drawPatternByRow(int patternSelect) {
       delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
   }
   delay(HOLD_PATTERN); // CHANGE TO INCREASE REFRESH RATE.
+  // CLEAR LED MATRIX
+  lc.clearDisplay(0);
+  
+  for (int i = 0; i < 8; i++) {
+      lc.setRow(0, i, ( splatsInverse[patternSelect][i]) ); //the reverse led pattern
+      delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
+  }
+  delay(HOLD_PATTERN); // CHANGE TO INCREASE REFRESH RATE.
   
   // CLEAR LED MATRIX
   lc.clearDisplay(0);
@@ -130,20 +138,20 @@ void loop() {
   setMode();  // CYCLE THROUGH MODES BASED ON BUTTON PRESS
   setRGB();   // SET RGB LED COLOUR BASED ON CURRENT MODE
   runMode();  // ACTUATE SET MODE
-//  Serial.println(mode);
+  Serial.println(mode);
 }
 
 
 /* setMode() controls the viability of the modes variable - count */  
 void setMode(){
-  currentBtnState = digitalRead(BUTTON_MODE_PIN);
-  if (currentBtnState != pastBtnState) {
-    if (currentBtnState == 0) {
+  currentBtnState = digitalRead(BUTTON_MODE_PIN); //get current btn state
+  if (currentBtnState != pastBtnState) { //check if btn is pressed
+    if (currentBtnState == 0) { //check if btn is released
        mode++;
     } 
   }
-  pastBtnState = currentBtnState;
-  if (mode > 3) {
+  pastBtnState = currentBtnState; //sync past btn press to current btn state
+  if (mode > 3) { //make the mode go back to 0
     mode = 0;
   }
   delay(50);
@@ -173,6 +181,7 @@ void setRGB() {
       analogWrite(LED_PIN_G, 0);
       analogWrite(LED_PIN_B, 0);
       break;
+    default: break;
   }
 }
 
@@ -202,21 +211,25 @@ void runMode() {
 
 /* reset() - restart the system */ 
 void reset() {
-  
+  patternsIndex = 0;
 }
 
 void resistanceBtnCounter() {
   resistanceValue = analogRead(KEY);
   if (resistanceValue >= 200 && resistanceValue < 260) {
       countPatterns = 0;
+      resistanceBtn = 0;
     } else if (resistanceValue >= 330 && resistanceValue < 350) {
       countPatterns = 1;
+      resistanceBtn = 1;
     } else if (resistanceValue >= 500 && resistanceValue < 520) {
       countPatterns = 2;
+      resistanceBtn = 2;
     } else if (resistanceValue >= 900 && resistanceValue < 1200) {
       countPatterns = 3;
+      resistanceBtn = 3;
     } else {
-       countPatterns = 4;
+       resistanceBtn = 4;
     }
 
 }
@@ -225,7 +238,7 @@ void resistanceBtnCounter() {
 void play() {
     resistanceBtnCounter();
     
-    switch(countPatterns) {
+    switch(resistanceBtn) {
       case 0: /* draw that pattern */ 
       drawPatternByRow(countPatterns);
       break;
@@ -254,101 +267,97 @@ void play() {
 /* record() - capture the sequence (MAX 16 PATTERNS) of input patterns from the resistor ladder and store them  
  *  in an array - implement function logic using a switch control structure */
 void record() {
+  //read btn press 
    resistanceValue = analogRead(KEY);
   if (resistanceValue >= 200 && resistanceValue < 260) {
       resistanceBtnOn = true;
       countPatterns = 0;
+      resistanceBtn = 0;
     } else if (resistanceValue >= 330 && resistanceValue < 350) {
       resistanceBtnOn = true;
       countPatterns = 1;
+      resistanceBtn = 1;
     } else if (resistanceValue >= 500 && resistanceValue < 520) {
       resistanceBtnOn = true;
       countPatterns = 2;
+      resistanceBtn = 2;
     } else if (resistanceValue >= 900 && resistanceValue < 1200) {
       resistanceBtnOn = true;
       countPatterns = 3;
+      resistanceBtn = 3;
     } else {
        resistanceBtnOn = false;
     }
 
-  switch(countPatterns) {
+  //illuminate the led according to the btn pressed
+  switch(resistanceBtn) {
       case 0: /* draw that pattern */ 
-      if (patternsIndex != 16 && resistanceBtnOn) {
+      if (patternsIndex < 15 && resistanceBtnOn) {
         drawPatternByRow(countPatterns);
       }
       break;
       
       case 1: 
       /* draw that pattern */ 
-      if (patternsIndex != 16 && resistanceBtnOn) {
+      if (patternsIndex < 15 && resistanceBtnOn) {
         drawPatternByRow(countPatterns);
       }
       break;
       
       case 2: 
       /* draw that pattern */ 
-      if (patternsIndex != 16 && resistanceBtnOn) {
+      if (patternsIndex < 15 && resistanceBtnOn) {
         drawPatternByRow(countPatterns);
       }
       break;
       
       case 3: 
       /* draw that pattern */ 
-      if (patternsIndex != 16 && resistanceBtnOn) {
+      if (patternsIndex < 15 && resistanceBtnOn) {
         drawPatternByRow(countPatterns);
       }
-      break;
-      
-      case 4: 
-      /* draw that pattern */ 
       break;
 
       default:
       break;
     }
 
-    if (resistanceBtnOn == true && patternsIndex <= 16) {
+    //increase the index for patterns array by 1 each time the btn is pressed
+    if (resistanceBtnOn == true && patternsIndex < 15) {
     patternsIndex ++;
     delay(50);
     resistanceBtnOn = false;
-    } 
+    } else if (resistanceBtnOn == true && patternsIndex == 15) { //do not increase the index anymore is it reaches 15
+      patternsIndex = 15;
+      delay(50);
+      resistanceBtnOn = false;
+    }
   
     patterns[patternsIndex] = countPatterns;
 
     
-//    Serial.print("Index: ");
-//    Serial.print(patternsIndex);
-//    Serial.print("Value: ");
-//    Serial.println(patterns[patternsIndex]);
+    Serial.print("Index: ");
+    Serial.print(patternsIndex);
+    Serial.print("Value: ");
+    Serial.println(patterns[patternsIndex]);
 //    delay(100);
 }
 
 /* loopo() - loops over the contents of the patterns array continiously until the mode changes */
 void loopop() {
-  //switch statement is used here because a it us unable to break out of for loop without switch statement
-    switch(currentBtnState) {
-  case 0:
+    //for each loop through pattern[]
     for (int i : patterns) {
     int loopingPattern = patterns[i];
     drawPatternByRow(loopingPattern);  
     delay(50);
-    
+
+    //check for btn press
     currentBtnState = digitalRead(BUTTON_MODE_PIN);
     if (currentBtnState == 1) {
+      mode = -1;
       break;
     delay(50);
     }
-    Serial.print("Index: ");
-    Serial.print(i);
-    Serial.print("Value: ");
-    Serial.println(loopingPattern);
-  }
-    break;
-    
-  case 1:
-    break;
-    
-  default:
-  break;
-}
+    }
+
 }
