@@ -45,6 +45,7 @@ int pastBtnState = 0;
 
 /* PATTERN COUNTER */
 int countPatterns = 0;
+int pastPattern; 
 int resistanceValue;
 int resistanceBtn = 0;
 int patternsIndex = 0;
@@ -98,10 +99,8 @@ void wakeUpMAX72XX() {
 /********************************************************************************/
 /* ALGORITHM TO DRAW YOUR PATTERN ROW x ROW CONTAINED WITHIN TWO DIMENSIONAL ARRAY */
 void drawPatternByRow(int patternSelect) {
-  
   // CLEAR LED MATRIX
   lc.clearDisplay(0);
-  
   for (int i = 0; i < 8; i++) {
       lc.setRow(0, i, ( splats[patternSelect][i]) );
       delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
@@ -109,16 +108,31 @@ void drawPatternByRow(int patternSelect) {
   delay(HOLD_PATTERN); // CHANGE TO INCREASE REFRESH RATE.
   // CLEAR LED MATRIX
   lc.clearDisplay(0);
-  
-  for (int i = 0; i < 8; i++) {
-      lc.setRow(0, i, ( splatsInverse[patternSelect][i]) ); //the reverse led pattern
+}
+
+
+void drawPatternByRowNew(int patternSelect) {
+  int currentPattern = patternSelect;
+  // CLEAR LED MATRIX
+  lc.clearDisplay(0);
+  if (pastPattern > 3) {
+    for (int i = 0; i < 8; i++) {
+      lc.setRow(0, i, ( splats[patternSelect][i]) ); //the initial led pattern
+      pastPattern = currentPattern;
       delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
+    } 
+  } else if (pastPattern <= 3){
+    for (int i = 0; i < 8; i++) {
+      lc.setRow(0, i, ( splatsInverse[patternSelect][i]) ); //the reverse led pattern
+      pastPattern = currentPattern +4;
+      delay(REFRESH_RATE_2); // CHANGE TO INCREASE REFRESH RATE.
+    }
   }
   delay(HOLD_PATTERN); // CHANGE TO INCREASE REFRESH RATE.
-  
   // CLEAR LED MATRIX
   lc.clearDisplay(0);
 }
+
 /********************************************************************************/
 
 /* SETUP ROUTINE - NO NEED TO ALTER FUNCTION */
@@ -138,7 +152,6 @@ void loop() {
   setMode();  // CYCLE THROUGH MODES BASED ON BUTTON PRESS
   setRGB();   // SET RGB LED COLOUR BASED ON CURRENT MODE
   runMode();  // ACTUATE SET MODE
-  Serial.println(mode);
 }
 
 
@@ -240,22 +253,22 @@ void play() {
     
     switch(resistanceBtn) {
       case 0: /* draw that pattern */ 
-      drawPatternByRow(countPatterns);
+      drawPatternByRowNew(countPatterns);
       break;
       
       case 1: 
       /* draw that pattern */ 
-      drawPatternByRow(countPatterns);
+      drawPatternByRowNew(countPatterns);
       break;
       
       case 2: 
       /* draw that pattern */ 
-      drawPatternByRow(countPatterns);
+      drawPatternByRowNew(countPatterns);
       break;
       
       case 3: 
       /* draw that pattern */ 
-      drawPatternByRow(countPatterns);
+      drawPatternByRowNew(countPatterns);
       break;
       
       case 4: 
@@ -293,28 +306,28 @@ void record() {
   switch(resistanceBtn) {
       case 0: /* draw that pattern */ 
       if (patternsIndex < 15 && resistanceBtnOn) {
-        drawPatternByRow(countPatterns);
+        drawPatternByRowNew(countPatterns);
       }
       break;
       
       case 1: 
       /* draw that pattern */ 
       if (patternsIndex < 15 && resistanceBtnOn) {
-        drawPatternByRow(countPatterns);
+        drawPatternByRowNew(countPatterns);
       }
       break;
       
       case 2: 
       /* draw that pattern */ 
       if (patternsIndex < 15 && resistanceBtnOn) {
-        drawPatternByRow(countPatterns);
+        drawPatternByRowNew(countPatterns);
       }
       break;
       
       case 3: 
       /* draw that pattern */ 
       if (patternsIndex < 15 && resistanceBtnOn) {
-        drawPatternByRow(countPatterns);
+        drawPatternByRowNew(countPatterns);
       }
       break;
 
@@ -348,7 +361,7 @@ void loopop() {
     //for each loop through pattern[]
     for (int i : patterns) {
     int loopingPattern = patterns[i];
-    drawPatternByRow(loopingPattern);  
+    drawPatternByRowNew(loopingPattern);  
     delay(50);
 
     //check for btn press
